@@ -1,0 +1,25 @@
+---
+title: "Trabajo Práctico Final"
+format: pdf
+editor: visual
+---
+
+## Importación de datos
+
+```{r}
+data <- read.csv("https://raw.githubusercontent.com/josekeh/RA_TrabajoFinal/heads/main/files/WNBA.csv", sep = ";")
+summary(data)
+```
+
+```{r}
+data$Equipo <- as.factor(data$Equipo)
+data$Posicion <- as.factor(data$Posicion)
+summary(data)
+```
+## Modelos
+
+```{r}
+m1 <- lm(Puntos ~ Minutos, data = data)
+m2 <- lm(Puntos ~ Minutos + Triples, data = data)
+m3 <- lm(Puntos ~ Minutos + Juegos, data = data)
+```
