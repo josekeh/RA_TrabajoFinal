@@ -2,12 +2,24 @@
 title: "Trabajo Práctico Final"
 format: pdf
 editor: visual
+editor_options: 
+  chunk_output_type: console
 ---
+
+```{r}
+library(tidyverse)
+library(kableExtra)
+library(broom)
+library(egg)
+library(ggpubr)
+library(car)
+
+```
 
 ## Importación de datos
 
 ```{r}
-data <- read.csv("https://raw.githubusercontent.com/josekeh/RA_TrabajoFinal/heads/main/files/WNBA.csv", sep = ";")
+data <- read.csv("files/WNBA.csv", sep = ";")
 summary(data)
 ```
 
@@ -16,10 +28,150 @@ data$Equipo <- as.factor(data$Equipo)
 data$Posicion <- as.factor(data$Posicion)
 summary(data)
 ```
+
 ## Modelos
 
 ```{r}
-m1 <- lm(Puntos ~ Minutos, data = data)
-m2 <- lm(Puntos ~ Minutos + Triples, data = data)
-m3 <- lm(Puntos ~ Minutos + Juegos, data = data)
+# División en training y testing
+set.seed(45672848)
+index_training <- sample(1:nrow(data), size = 0.7*nrow(data))
+
+training <- data[index_training,]
+testing <- data[-index_training,]
+```
+
+```{r}
+m1 <- lm(Puntos ~ Minutos, data = training)
+m2 <- lm(Puntos ~ Minutos + Triples, data = training)
+m3 <- lm(Puntos ~ Minutos + Juegos, data = training)
+```
+
+## Comparación de modelos
+
+```{r}
+modelos <- data.frame(Modelo = c("Modelo 1", "Modelo 2", "Modelo 3"),
+                      Ajuste = c("m1", "m2", "m3"))
+```
+
+```{r}
+Modelo_completo <- lm(Puntos ~ . -Jugadora, data = training)
+sigma <- sum(residuals(Modelo_completo)^2)/df.residual(Modelo_completo)
+
+Resumen <- modelos %>% 
+  group_by(Modelo) %>% 
+  summarise(CME = summary(get(Ajuste))$sigma^2,
+            PRESS = sum((resid(get(Ajuste))/(1-hatvalues(get(Ajuste))))^2),
+            Cp = sum(residuals(get(Ajuste))^2)/sigma + 2 * length(coef(get(Ajuste))) - nrow(training),
+            AIC = AIC(get(Ajuste)),
+            BIC = BIC(get(Ajuste)))
+
+kable(Resumen, caption = "Tabla N°1: Comparación del ajuste de los 3 modelos") %>%
+  kable_styling(bootstrap_options = "striped", full_width = F)
+```
+
+## Evaluación de supuestos
+
+```{r}
+Modelo_final <- augment(m2)
+g1 <- ggplot(mapping = aes(sample = Modelo_final$.resid)) + 
+    stat_qq(color = "dodgerblue") + 
+    stat_qq_line() + 
+  ggtitle("QQ Normal") +
+  xlab("Cuantiles teóricos") +
+  ylab("Cuantiles muestrales") +
+  geom_text(aes(x = 2, y = -150, fill ="black", label = paste0("p-value \n", round(shapiro.test(Modelo_final$.resid)$p.value, 8)))) +
+  theme_bw() +
+  theme(plot.title = element_text(hjust = 0.5),
+        legend.position = "none")
+
+g2 <- ggplot(Modelo_final) +
+  aes(x = .fitted, y = .std.resid) +
+  geom_point(color = "dodgerblue") +
+  geom_hline(yintercept = 0, color = "black") +
+  ggtitle("Residuos vs. Predichos") +
+  xlab("Valores predichos") +
+  ylab("Residuos estandarizados") +
+  theme_bw() +
+  theme(plot.title = element_text(hjust = 0.5))
+
+g <- ggarrange(g1, g2, ncol = 2)
+
+annotate_figure(g, top = text_grob("Gráfico N°1: Comprobación de supuestos", face = "bold", size = 14))
+```
+
+```{r}
+# Colinealidad
+training_modelo <- training %>% 
+  select(Juegos, Minutos, Triples, Dobles)
+
+corr_matrix <- cor(training_modelo)
+
+corr_melted <- reshape2::melt(corr_matrix)
+
+ggplot(corr_melted, aes(x = Var2, y = Var1, fill = value)) +
+  geom_tile() +
+  geom_text(aes(label = round(value, 2)), size = 3) +
+  scale_fill_gradient2(low = "#ef2947", high = "#009929", mid = "white", midpoint = 0) +
+  labs(x = "", y = "", title = "Gráfico N°2: Matriz de correlación") +
+  theme_minimal() +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1),
+        plot.title = element_text(hjust = 0.5, face = "bold"))
+```
+
+```{r}
+vif = vif(m2)
+
+vif_df <- data.frame(Variable = names(vif),
+                     VIF = as.numeric(vif),
+                     row.names = NULL)
+
+kable(vif_df, caption = "Tabla N°2: Factores de Inflación de la Varianza (VIF)") %>%
+  kable_styling(bootstrap_options = c("striped", "hover"), full_width = F)
+```
+
+```{r}
+# Observaciones atípicas
+Modelo_final <- mutate(Modelo_final, 
+                       PRESS = .resid/(1-.hat),
+                       id = 1:nrow(Modelo_final))
+
+ggplot(data = Modelo_final) + 
+    aes(x = id, y = PRESS) + 
+  geom_bar(stat="identity", color = "dodgerblue", fill = "dodgerblue")+
+    geom_hline(aes(yintercept = 0)) +
+    ggtitle("Gráfico N°3: Residuos PRESS") +
+    xlab("Observación") +
+    ylab("PRESS") +
+    theme_bw() +
+    theme(legend.position = "none",
+          axis.title = element_text(face = "bold"),
+          plot.title = element_text(hjust = 0.5, face = "bold"))
+```
+
+```{r}
+# Observaciones influyentes
+ggplot(data = Modelo_final) + 
+    aes(x = id, y = .cooksd) + 
+  geom_bar(stat="identity", color = "dodgerblue", fill = "dodgerblue")+
+    geom_hline(aes(yintercept = 0)) +
+    ggtitle("Gráfico N°4: Distancia de Cook") +
+    xlab("Observación") +
+    ylab("Distancia de Cook") +
+    theme_bw() +
+    theme(legend.position = "none",
+      axis.title = element_text(face = "bold"),
+      plot.title = element_text(hjust = 0.5, face = "bold"))
+```
+
+## Interpretación del modelo
+
+```{r}
+Betas = data.frame(Variable = names(coef(m2)),
+                   Valor = as.numeric(coef(m2)),
+                   P_value = as.numeric(coef(summary(m2))[, "Pr(>|t|)"]))
+
+kable(Betas, caption = "Tabla N°3: Coeficientes estimados del modelo") %>%
+  kable_styling(bootstrap_options = c("striped", "hover"), full_width = F)
+
+as.numeric(coef(summary(m2))[, "Pr(>|t|)"])
 ```
