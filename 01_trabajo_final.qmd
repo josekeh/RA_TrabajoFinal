@@ -40,8 +40,23 @@ training <- data[index_training,]
 testing <- data[-index_training,]
 ```
 
+Stepwise regression:
+
 ```{r}
-m1 <- lm(Puntos ~ Minutos, data = training)
+training_filtered <- select(training, -Jugadora)
+m1 <- MASS::stepAIC(
+  object = lm(Puntos ~ 1, data = training_filtered), #punto de partida
+  scope = list(upper = lm(Puntos ~ ., data = training_filtered)), #máximo modelo posible
+  direction = "both", #método de selección
+  trace = FALSE, #para no imprimir resultados parciales
+  k = 2, #penalización a emplear (2 = AIC, log(n) = BIC)
+  steps = 1000 #máximo nro de pasos
+  )
+
+summary(m1)
+```
+
+```{r}
 m2 <- lm(Puntos ~ Minutos + Triples, data = training)
 m3 <- lm(Puntos ~ Minutos + Juegos, data = training)
 ```
