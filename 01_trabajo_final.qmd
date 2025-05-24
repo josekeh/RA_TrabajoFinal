@@ -1,9 +1,13 @@
 ---
 title: "Trabajo Práctico Final"
 format: pdf
+lang: es 
 editor: visual
 editor_options: 
   chunk_output_type: console
+execute: 
+  echo: false
+  warning: false
 ---
 
 ```{r}
@@ -57,8 +61,33 @@ summary(m1)
 ```
 
 ```{r}
+m2 <- MASS::stepAIC(
+  object = lm(Puntos ~ ., data = training_filtered), #máximo modelo posible
+  direction = "backward", #método de selección
+  trace = FALSE, #para no imprimir resultados parciales
+  k = 2, #penalización a emplear (2 = AIC, log(n) = BIC)
+  steps = 1000 #máximo nro de pasos
+  )
+
+summary(m2)
+```
+
+```{r}
+m3 <- MASS::stepAIC(
+  object = lm(Puntos ~ 1, data = training_filtered), #Punto de partida
+  scope = list(upper = lm(Puntos ~ ., data = training_filtered)), #máximo modelo posible
+  direction = "forward", #método de selección
+  trace = FALSE, #para no imprimir resultados parciales
+  k = 2, #penalización a emplear (2 = AIC, log(n) = BIC)
+  steps = 1000 #máximo nro de pasos
+  )
+
+summary(m3)
+```
+
+```{r}
 m2 <- lm(Puntos ~ Minutos + Triples, data = training)
-m3 <- lm(Puntos ~ Minutos + Juegos, data = training)
+m3 <- lm(Puntos ~ Triples + Dobles + Minutos + Asistencias + Rebotes + Posicion, data = training)
 ```
 
 ## Comparación de modelos
@@ -69,7 +98,7 @@ modelos <- data.frame(Modelo = c("Modelo 1", "Modelo 2", "Modelo 3"),
 ```
 
 ```{r}
-Modelo_completo <- lm(Puntos ~ . -Jugadora, data = training)
+Modelo_completo <- lm(Puntos ~ . -Jugadora - Equipo, data = training)
 sigma <- sum(residuals(Modelo_completo)^2)/df.residual(Modelo_completo)
 
 Resumen <- modelos %>% 
@@ -87,7 +116,7 @@ kable(Resumen, caption = "Tabla N°1: Comparación del ajuste de los 3 modelos")
 ## Evaluación de supuestos
 
 ```{r}
-Modelo_final <- augment(m2)
+Modelo_final <- augment(m1)
 g1 <- ggplot(mapping = aes(sample = Modelo_final$.resid)) + 
     stat_qq(color = "dodgerblue") + 
     stat_qq_line() + 
@@ -129,12 +158,11 @@ ggplot(corr_melted, aes(x = Var2, y = Var1, fill = value)) +
   scale_fill_gradient2(low = "#ef2947", high = "#009929", mid = "white", midpoint = 0) +
   labs(x = "", y = "", title = "Gráfico N°2: Matriz de correlación") +
   theme_minimal() +
-  theme(axis.text.x = element_text(angle = 45, hjust = 1),
-        plot.title = element_text(hjust = 0.5, face = "bold"))
+  theme(plot.title = element_text(hjust = 0.5, face = "bold"))
 ```
 
 ```{r}
-vif = vif(m2)
+vif = vif(m1)
 
 vif_df <- data.frame(Variable = names(vif),
                      VIF = as.numeric(vif),
@@ -165,10 +193,9 @@ ggplot(data = Modelo_final) +
 
 ```{r}
 # Observaciones influyentes
-ggplot(data = Modelo_final) + 
-    aes(x = id, y = .cooksd) + 
+ggplot(data = Modelo_final) +
+    aes(x = id, y = .cooksd) +
   geom_bar(stat="identity", color = "dodgerblue", fill = "dodgerblue")+
-    geom_hline(aes(yintercept = 0)) +
     ggtitle("Gráfico N°4: Distancia de Cook") +
     xlab("Observación") +
     ylab("Distancia de Cook") +
@@ -181,9 +208,9 @@ ggplot(data = Modelo_final) +
 ## Interpretación del modelo
 
 ```{r}
-Betas = data.frame(Variable = names(coef(m2)),
-                   Valor = as.numeric(coef(m2)),
-                   P_value = as.numeric(coef(summary(m2))[, "Pr(>|t|)"]))
+Betas = data.frame(Variable = names(coef(m1)),
+                   Valor = as.numeric(coef(m1)),
+                   P_value = as.numeric(coef(summary(m1))[, "Pr(>|t|)"]))
 
 kable(Betas, caption = "Tabla N°3: Coeficientes estimados del modelo") %>%
   kable_styling(bootstrap_options = c("striped", "hover"), full_width = F)
