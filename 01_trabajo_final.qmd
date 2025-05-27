@@ -47,7 +47,7 @@ testing <- data[-index_training,]
 Stepwise regression:
 
 ```{r}
-training_filtered <- select(training, -Jugadora)
+training_filtered <- select(training, -Jugadora, -Equipo)
 m1 <- MASS::stepAIC(
   object = lm(Puntos ~ 1, data = training_filtered), #punto de partida
   scope = list(upper = lm(Puntos ~ ., data = training_filtered)), #máximo modelo posible
@@ -60,9 +60,12 @@ m1 <- MASS::stepAIC(
 summary(m1)
 ```
 
+Modelo por intuición:
+
+Se plantea un modelo donde los puntos se basen en dobles, triples y debido a que debería de haber una diferencia (por los libres), se plantea la posición, la cual determinaría la tendencia de un jugador a recibir faltas de tiro.
 ```{r}
 m2 <- MASS::stepAIC(
-  object = lm(Puntos ~ ., data = training_filtered), #máximo modelo posible
+  object = lm(Puntos ~ Dobles + Triples + Posicion, data = training_filtered),
   direction = "backward", #método de selección
   trace = FALSE, #para no imprimir resultados parciales
   k = 2, #penalización a emplear (2 = AIC, log(n) = BIC)
