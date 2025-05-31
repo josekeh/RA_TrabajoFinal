@@ -10,6 +10,14 @@ execute:
   warning: false
 ---
 
+# Introducción
+
+El básquetbol es uno de los deportes más populares en los Estados Unidos. Además de su destacadísima liga masculina NBA, se encuentra su similar femenina, la altamente competitiva, WNBA. El siguiente trabajo busca demostrar conocimientos parendidos en la materia Regresión avanzada a partir de un dataset de esta ultima liga mencionada.
+
+# Dataset
+
+## Librarías
+
 ```{r}
 library(tidyverse)
 library(kableExtra)
@@ -32,6 +40,26 @@ data$Equipo <- as.factor(data$Equipo)
 data$Posicion <- as.factor(data$Posicion)
 summary(data)
 ```
+
+## Breve análisis
+
+A través del summary se puede ver que las variables numéricas están correctamente definidas, sin NAs. Los mismo para Equipo y Posición.
+Se procede a analizar si existen jugadoras campo Jugadora vacío
+
+```{r}
+paste0("Hay ",count(data %>% filter(Jugadora == "")), " registros vacíos")
+```
+
+Una vez checkeado esto, viendo que no hay vacíos, vemos si hay alguna jugadora repetida.
+```{r}
+data[duplicated(data$Jugadora),]
+```
+Vemos que existen jugadoras que aparecen más de una vez, pero parece ser que se encuentran en equipos diferentes.
+
+```{r}
+print(count(data[duplicated(data[, c("Jugadora", "Equipo")]), ]))
+```
+Por ende, podemos entender que cada vez que aparece una jugadora se da en otro club. Esto también puede llevar a diferentes condiciones de goleo como así también otro momento de la carrera profesional, por lo que se decide conservar los datos tal cual se encuentran.
 
 ## Modelos
 
@@ -63,6 +91,7 @@ summary(m1)
 Modelo por intuición:
 
 Se plantea un modelo donde los puntos se basen en dobles, triples y debido a que debería de haber una diferencia (por los libres), se plantea la posición, la cual determinaría la tendencia de un jugador a recibir faltas de tiro.
+
 ```{r}
 m2 <- lm(Puntos ~ Dobles + Triples + Posicion, data = training_filtered)
 
@@ -214,8 +243,4 @@ kable(Betas, caption = "Tabla N°3: Coeficientes estimados del modelo") %>%
 as.numeric(coef(summary(m2))[, "Pr(>|t|)"])
 ```
 
-
-Todo:
--   Redactar intro con analisis descriptivo breve (chino)
--   Redactar punto 1 (chino)
--   Riedge y Lasso + redacción (Fede)
+Todo: - Redactar intro con analisis descriptivo breve (chino) - Redactar punto 1 (chino) - Riedge y Lasso + redacción (Fede)
