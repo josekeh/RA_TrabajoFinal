@@ -64,13 +64,7 @@ Modelo por intuición:
 
 Se plantea un modelo donde los puntos se basen en dobles, triples y debido a que debería de haber una diferencia (por los libres), se plantea la posición, la cual determinaría la tendencia de un jugador a recibir faltas de tiro.
 ```{r}
-m2 <- MASS::stepAIC(
-  object = lm(Puntos ~ Dobles + Triples + Posicion, data = training_filtered),
-  direction = "backward", #método de selección
-  trace = FALSE, #para no imprimir resultados parciales
-  k = 2, #penalización a emplear (2 = AIC, log(n) = BIC)
-  steps = 1000 #máximo nro de pasos
-  )
+m2 <- lm(Puntos ~ Dobles + Triples + Posicion, data = training_filtered)
 
 summary(m2)
 ```
@@ -89,7 +83,6 @@ summary(m3)
 ```
 
 ```{r}
-m2 <- lm(Puntos ~ Minutos + Triples, data = training)
 m3 <- lm(Puntos ~ Triples + Dobles + Minutos + Asistencias + Rebotes + Posicion, data = training)
 ```
 
@@ -220,3 +213,9 @@ kable(Betas, caption = "Tabla N°3: Coeficientes estimados del modelo") %>%
 
 as.numeric(coef(summary(m2))[, "Pr(>|t|)"])
 ```
+
+
+Todo:
+-   Redactar intro con analisis descriptivo breve (chino)
+-   Redactar punto 1 (chino)
+-   Riedge y Lasso + redacción (Fede)
