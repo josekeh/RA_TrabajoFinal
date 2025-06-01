@@ -20,6 +20,7 @@ El básquetbol es uno de los deportes más populares en los Estados Unidos. Adem
 
 ```{r}
 library(tidyverse)
+library(ggplot2)
 library(kableExtra)
 library(broom)
 library(egg)
@@ -43,6 +44,8 @@ summary(data)
 
 ## Breve análisis
 
+### Vacíos y duplicados
+
 A través del summary se puede ver que las variables numéricas están correctamente definidas, sin NAs. Los mismo para Equipo y Posición. Se procede a analizar si existen jugadoras campo Jugadora vacío
 
 ```{r}
@@ -63,7 +66,39 @@ print(count(data[duplicated(data[, c("Jugadora", "Equipo")]), ]))
 
 Por ende, podemos entender que cada vez que aparece una jugadora se da en otro club. Esto también puede llevar a diferentes condiciones de goleo como así también otro momento de la carrera profesional, por lo que se decide conservar los datos tal cual se encuentran.
 
-## Modelos
+### Entendiendo el dataset
+
+Una vez avanzada la etapa anterior, vamos a ver brevemente cómo se encuentran distribuidos los datos.
+
+```{r}
+ggplot(data, aes(x = Equipo)) +
+  geom_bar(fill = "grey", color = "black") +
+  labs(title = "Equipos",
+       x = "Equipo",
+       y = "Frecuencia") +
+  theme_minimal()
+```
+
+```{r}
+ggplot(data, aes(x = Posicion)) +
+  geom_bar(fill = "grey", color = "black") +
+  labs(title = "Equipos",
+       x = "Posición",
+       y = "Frecuencia") +
+  theme_minimal()
+```
+
+Se puede observar como es similar la distribución de jugadoras por equipo, mientras que abundan mayormente posiciones de Escolta, seguido de Alero y luego Pivot. El tener pocos datos de Pivots no es algo irracional, ya que es es la posición que menos jugadoras suele haber.
+
+```{r}
+skimr::skim(data %>% select(where(is.numeric)))
+```
+
+-   ToDo
+
+# Modelos de Regresión Lineal
+
+Para comenzar a trabajar en los modelos de regresión lineal, se procede a dividir el dataset en train/test. Se define una semilla para hacer reproducible el experimento y se define, por consigna, que el train contenga el 70% de los datos, mientras que lo restante queda para test.
 
 ```{r}
 # División en training y testing
@@ -74,7 +109,11 @@ training <- data[index_training,]
 testing <- data[-index_training,]
 ```
 
-Stepwise regression:
+Se procede, luego, a obtener tres modelos mediante los siguientes criterios: - Usando stepwise regression - Criterios propios - Preguntando al famoso ChatGPT
+
+## Stepwise regression
+
+Para el primer caso se busca obtener un modelo de regresión en el que las variables a utilizar se definan por el proceso automático de Stepwise regression. Para el análisis se quitan del dataset el nombre de la jugadora y el equipo. \[...\]
 
 ```{r}
 training_filtered <- select(training, -Jugadora, -Equipo)
@@ -90,9 +129,11 @@ m1 <- MASS::stepAIC(
 summary(m1)
 ```
 
-Modelo por intuición:
+El resultado devuelve la utilización de Dobles, Triples, Robos y Juegos.
 
-Se plantea un modelo donde los puntos se basen en dobles, triples y debido a que debería de haber una diferencia (por los libres), se plantea la posición, la cual determinaría la tendencia de un jugador a recibir faltas de tiro.
+## Criterios propios
+
+Observando el dataset, se plantea un modelo donde los puntos se basen en dobles y triples, y debido a que debería de haber una diferencia (por los libres), se plantea la posición, la cual determinaría la tendencia de un jugador a recibir faltas de tiro.
 
 ```{r}
 m2 <- lm(Puntos ~ Dobles + Triples + Posicion, data = training_filtered)
@@ -100,24 +141,17 @@ m2 <- lm(Puntos ~ Dobles + Triples + Posicion, data = training_filtered)
 summary(m2)
 ```
 
-```{r}
-m3 <- MASS::stepAIC(
-  object = lm(Puntos ~ 1, data = training_filtered), #Punto de partida
-  scope = list(upper = lm(Puntos ~ ., data = training_filtered)), #máximo modelo posible
-  direction = "forward", #método de selección
-  trace = FALSE, #para no imprimir resultados parciales
-  k = 2, #penalización a emplear (2 = AIC, log(n) = BIC)
-  steps = 1000 #máximo nro de pasos
-  )
+## ChatGPT
 
-summary(m3)
-```
+Para este tercer modelo, se le ha preguntado (o desafiado) a ChatGPT a recomendar cuál sería el mejor modelo. La respuesta fue incluir Dobles, Triples, Minutos, Asistencias, Rebotes y Posicion.
 
 ```{r}
 m3 <- lm(Puntos ~ Triples + Dobles + Minutos + Asistencias + Rebotes + Posicion, data = training)
 ```
 
 ## Comparación de modelos
+
+Se procede a comparar los modelos planteados comparando CME, PRESS, Cp, AIC y BIC.
 
 ```{r}
 modelos <- data.frame(Modelo = c("Modelo 1", "Modelo 2", "Modelo 3"),
@@ -140,7 +174,11 @@ kable(Resumen, caption = "Tabla N°1: Comparación del ajuste de los 3 modelos")
   kable_styling(bootstrap_options = "striped", full_width = F)
 ```
 
-## Evaluación de supuestos
+Con los datos obtenidos se puede pensar en elegir entre el Modelo 1 y Modelo 2. El Modelo 1 es el que mejores resultados en las métricas de performance, mientras que el Modelo 2 es apenas peor, pero es más simple. Para este caso, se decide quedarse con el Modelo 1.
+
+## Análisis de residuos
+
+Ya con el Modelo 1 elegido, se procede a evaluar residuos.
 
 ```{r}
 Modelo_final <- augment(m1)
@@ -170,6 +208,8 @@ g <- ggarrange(g1, g2, ncol = 2)
 annotate_figure(g, top = text_grob("Gráfico N°1: Comprobación de supuestos", face = "bold", size = 14))
 ```
 
+Luego se procede a analizar colinealidad
+
 ```{r}
 # Colinealidad
 training_modelo <- training %>% 
@@ -187,6 +227,8 @@ ggplot(corr_melted, aes(x = Var2, y = Var1, fill = value)) +
   theme_minimal() +
   theme(plot.title = element_text(hjust = 0.5, face = "bold"))
 ```
+
+Analizando las correlaciones lineales entre variables se observa que minutos está muy relacionada linealmente con todas las restantes.
 
 ```{r}
 vif = vif(m1)
