@@ -113,7 +113,7 @@ Se procede, luego, a obtener tres modelos mediante los siguientes criterios: - U
 
 ## Stepwise regression
 
-Para el primer caso se busca obtener un modelo de regresión en el que las variables a utilizar se definan por el proceso automático de Stepwise regression. Para el análisis se quitan del dataset el nombre de la jugadora y el equipo. \[...\]
+Para el primer caso se busca obtener un modelo de regresión en el que las variables a utilizar se definan por el proceso automático de Stepwise regression. Para el análisis se quitan del dataset el nombre de la jugadora y el equipo, ya que dichas variables cuentan con una gran cantidad de categorías. En caso de incluirlas, se obtendrían estimaciones muy pobres debido a los escasos grados de libertad, o incluso podría llegar el caso que sea imposible estimar el modelo.
 
 ```{r}
 training_filtered <- select(training, -Jugadora, -Equipo)
@@ -178,7 +178,7 @@ Con los datos obtenidos se puede pensar en elegir entre el Modelo 1 y Modelo 2. 
 
 ## Análisis de residuos
 
-Ya con el Modelo 1 elegido, se procede a evaluar residuos.
+Ya con el Modelo 1 elegido, se procede a evaluar los supuestos a través de los residuos.
 
 ```{r}
 Modelo_final <- augment(m1)
@@ -207,6 +207,8 @@ g <- ggarrange(g1, g2, ncol = 2)
 
 annotate_figure(g, top = text_grob("Gráfico N°1: Comprobación de supuestos", face = "bold", size = 14))
 ```
+
+En el gráfico N°1 se observa que la distribución de los mismos presenta colas pesadas y que no se verifica el supuesto de variancia constante. En caso de querer solucionarlo, podría optarse por utilizar una transformación de la variables respuesta como el $log(Y)$ o bien aplicar el método de Box y Cox.
 
 Luego se procede a analizar colinealidad
 
@@ -241,38 +243,42 @@ kable(vif_df, caption = "Tabla N°2: Factores de Inflación de la Varianza (VIF)
   kable_styling(bootstrap_options = c("striped", "hover"), full_width = F)
 ```
 
+Al analizar la tabla N°2, se ve que, a pesar de que las variables estén altamente correlacionadas, esto no tiene un impacto tan importante ya que ningún VIF es mayor a 5.
+
 ```{r}
 # Observaciones atípicas
 Modelo_final <- mutate(Modelo_final, 
                        PRESS = .resid/(1-.hat),
                        id = 1:nrow(Modelo_final))
 
-ggplot(data = Modelo_final) + 
+g1 <- ggplot(data = Modelo_final) + 
     aes(x = id, y = PRESS) + 
   geom_bar(stat="identity", color = "dodgerblue", fill = "dodgerblue")+
     geom_hline(aes(yintercept = 0)) +
-    ggtitle("Gráfico N°3: Residuos PRESS") +
+    ggtitle("Residuos PRESS") +
     xlab("Observación") +
     ylab("PRESS") +
     theme_bw() +
     theme(legend.position = "none",
-          axis.title = element_text(face = "bold"),
-          plot.title = element_text(hjust = 0.5, face = "bold"))
-```
+          plot.title = element_text(hjust = 0.5))
 
-```{r}
 # Observaciones influyentes
-ggplot(data = Modelo_final) +
+g2 <- ggplot(data = Modelo_final) +
     aes(x = id, y = .cooksd) +
   geom_bar(stat="identity", color = "dodgerblue", fill = "dodgerblue")+
-    ggtitle("Gráfico N°4: Distancia de Cook") +
+    ggtitle("Distancia de Cook") +
     xlab("Observación") +
     ylab("Distancia de Cook") +
     theme_bw() +
     theme(legend.position = "none",
-      axis.title = element_text(face = "bold"),
-      plot.title = element_text(hjust = 0.5, face = "bold"))
+      plot.title = element_text(hjust = 0.5))
+
+g <- ggarrange(g1, g2, ncol = 2)
+
+annotate_figure(g, top = text_grob("Gráfico N°3: Observaciones atípicas e influyentes", face = "bold", size = 14))
 ```
+
+En el gráfico N°3 se vuelve a ver que existe una observación atípica, la cual presenta un residuo PRESS mayor a 100. Sin embargo, al analizar la influencia de las observaciones mediante la distancia de Cook, se encuentra que ninguna tiene una influencia desmedida sobre el ajuste del modelo, ya que todas son menores a 1.
 
 ## Interpretación del modelo
 
