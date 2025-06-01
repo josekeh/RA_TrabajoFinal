@@ -16,7 +16,7 @@ El básquetbol es uno de los deportes más populares en los Estados Unidos. Adem
 
 # Dataset
 
-## Librarías
+## Librerías
 
 ```{r}
 library(tidyverse)
@@ -25,7 +25,7 @@ library(broom)
 library(egg)
 library(ggpubr)
 library(car)
-
+library(glmnet)
 ```
 
 ## Importación de datos
@@ -43,22 +43,24 @@ summary(data)
 
 ## Breve análisis
 
-A través del summary se puede ver que las variables numéricas están correctamente definidas, sin NAs. Los mismo para Equipo y Posición.
-Se procede a analizar si existen jugadoras campo Jugadora vacío
+A través del summary se puede ver que las variables numéricas están correctamente definidas, sin NAs. Los mismo para Equipo y Posición. Se procede a analizar si existen jugadoras campo Jugadora vacío
 
 ```{r}
 paste0("Hay ",count(data %>% filter(Jugadora == "")), " registros vacíos")
 ```
 
 Una vez checkeado esto, viendo que no hay vacíos, vemos si hay alguna jugadora repetida.
+
 ```{r}
 data[duplicated(data$Jugadora),]
 ```
+
 Vemos que existen jugadoras que aparecen más de una vez, pero parece ser que se encuentran en equipos diferentes.
 
 ```{r}
 print(count(data[duplicated(data[, c("Jugadora", "Equipo")]), ]))
 ```
+
 Por ende, podemos entender que cada vez que aparece una jugadora se da en otro club. Esto también puede llevar a diferentes condiciones de goleo como así también otro momento de la carrera profesional, por lo que se decide conservar los datos tal cual se encuentran.
 
 ## Modelos
@@ -244,3 +246,74 @@ as.numeric(coef(summary(m2))[, "Pr(>|t|)"])
 ```
 
 Todo: - Redactar intro con analisis descriptivo breve (chino) - Redactar punto 1 (chino) - Riedge y Lasso + redacción (Fede)
+
+## Métodos de Regularización
+
+Una vez identificado el mejor modelo de regresión con el ajuste de mínimos cuadrados ordinarios, se optó por evaluar la posibilidad de utilizar métodos de regularización. Esto se hizo con el objetivo de intentar mejorar la capacidad predictiva, basándonos en la idea del *trade-off* entre sesgo y variancia.
+
+Para realizar tanto el ajuste mediante la regresión ridge, como por el método de lasso, primero se buscó el mejor valor de $\lambda$ utilizando *5-fold Cross-Validation.*
+
+Los resultados de los ajustes junto con los valores de $\lambda$ utilizados, son presentados a continuación:
+
+```{r}
+# Preparamos la matriz de predictores
+training_X <- training %>% 
+  select(Dobles, Triples, Robos, Juegos) %>% 
+  as.matrix()
+
+# Buscamos el lambda óptimo para ridge y lasso
+lambda_ridge <- cv.glmnet(training_X, training$Puntos, nfolds = 5, alpha = 0)$lambda.min 
+
+lambda_lasso <- cv.glmnet(training_X, training$Puntos, nfolds = 5, alpha = 1)$lambda.min 
+
+# Ajustamos la regresión ridge y la regresión lasso
+m_ridge <- glmnet(x = training_X, y = training$Puntos, alpha = 0, lambda = lambda_ridge)
+
+m_lasso <- glmnet(x = training_X, y = training$Puntos, alpha = 1, lambda = lambda_ridge)
+coefficients(m_lasso)
+```
+
+```{r}
+modelos <- data.frame(Modelo = c(paste0("Modelo Ridge (lambda = ", round(lambda_ridge, 3), ")"), paste0("Modelo Lasso (lambda = ", round(lambda_lasso, 3), ")"), "Modelo MCO"),
+                      Ajuste = c("m_ridge", "m_lasso", "m1"))
+
+modelos$Modelo <- factor(modelos$Modelo, levels = c("Modelo Ridge (lambda = 19.131)", "Modelo Lasso (lambda = 0.496)", "Modelo MCO"))
+
+Comparacion <- modelos %>% 
+  group_by(Modelo) %>% 
+  summarise(Intercept = round(coefficients(get(Ajuste))[1], 2),
+            Dobles = round(coefficients(get(Ajuste))[2], 2),
+            Triples = round(coefficients(get(Ajuste))[3], 2),
+            Robos = round(coefficients(get(Ajuste))[4], 2),
+            Juegos = round(coefficients(get(Ajuste))[5], 2))
+
+kable(Comparacion, caption = "Tabla N°4: Comparación de los coeficientes estimados por los 3 modelos") %>%
+  kable_styling(bootstrap_options = "striped", full_width = F)
+```
+
+Al analizar la Tabla N°4, puede verse que los valores óptimos de $\lambda$ varían mucho según se trata de la regresión Ridge o del método de Lasso. Respecto a los coeficientes estimados vemos que, como indica la teoría, en general han reducido su valor. En el caso de la regresión Ridge destaca que se invirtieron los signos del intercepto y la variable juegos. En el caso de Lasso, destaca que el coeficiente de juegos lo forzó a ser igual a 0 y eso trajo aparejado un aumento importante en el valor del intercepto.
+
+## Capacidad predictiva
+
+Una vez presentado el ajuste de los 3 modelos, se evaluó su poder predictivo en base al error cuadrático medio en el conjunto de testeo.
+
+```{r}
+testing_X <- testing %>% 
+  select(Dobles, Triples, Robos, Juegos) %>% 
+  as.matrix()
+
+pred_ridge <- predict(m_ridge, testing_X)
+pred_lasso <- predict(m_lasso, testing_X)
+pred_MCO <- predict(m1, testing)
+
+MSE_ridge <- mean((testing$Puntos-pred_ridge)^2)
+MSE_lasso <- mean((testing$Puntos-pred_lasso)^2)
+MSE_MCO <- mean((testing$Puntos-pred_MCO)^2)
+
+modelos$MSE = c(MSE_ridge, MSE_lasso, MSE_MCO)
+
+kable(modelos[,c(1,3)], caption = "Tabla N°5: Comparación de la capacidad predictiva de los 3 modelos") %>%
+  kable_styling(bootstrap_options = "striped", full_width = F)
+```
+
+Sorprendentemente, la Tabla N°5 muestra que el mejor ajuste fue el de mínimos cuadrados ordinarios, el cual presenta un error 60% menor al de los modelos de Ridge y Lasso. Esto nos indica que, a pesar de que no se cumplan los supuestos y hayamos identificado posibles problemas de colinealidad, a la hora de predecir mínimo cuadrados fue más performante que el resto.
