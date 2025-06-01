@@ -289,7 +289,7 @@ as.numeric(coef(summary(m2))[, "Pr(>|t|)"])
 
 Todo: - Redactar intro con analisis descriptivo breve (chino) - Redactar punto 1 (chino) - Riedge y Lasso + redacción (Fede)
 
-## Métodos de Regularización
+# Métodos de Regularización
 
 Una vez identificado el mejor modelo de regresión con el ajuste de mínimos cuadrados ordinarios, se optó por evaluar la posibilidad de utilizar métodos de regularización. Esto se hizo con el objetivo de intentar mejorar la capacidad predictiva, basándonos en la idea del *trade-off* entre sesgo y variancia.
 
