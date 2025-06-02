@@ -94,7 +94,9 @@ Se puede observar como es similar la distribución de jugadoras por equipo, mien
 skimr::skim(data %>% select(where(is.numeric)))
 ```
 
--   ToDo
+Analizando las variables cuantitativas vemos en primer lugar que no hay valores negativos, lo cual es coherente y requerido. Mientras que la mayoría de las distribuciones son asimétricas hacia la derecha, se puede observar como la cantidad de juegos es la única que no respeta este patrón. Resulta apropiado ver cómo el histograma de dobles y triples es muy parecido en la forma de la distribución como así también el resultante natural de los puntos. 
+
+También es interesante comparar medias de Triples y Dobles con Puntos. Si se realizar rápidamente Triples x 3 + Dobles x 2 (en medias), se obtiene un valor de 186.7, lejano al 226 de los Puntos, por lo que podríamos entender, a priori, que los libres (tiros individuales de 1 punto) tiene peso en el goleo de las jugadoras.
 
 # Modelos de Regresión Lineal
 
@@ -109,11 +111,14 @@ training <- data[index_training,]
 testing <- data[-index_training,]
 ```
 
-Se procede, luego, a obtener tres modelos mediante los siguientes criterios: - Usando stepwise regression - Criterios propios - Preguntando al famoso ChatGPT
+Se procede, luego, a obtener tres modelos mediante los siguientes criterios: 
+- Usando stepwise regression 
+- Criterios propios 
+- Preguntando al famoso ChatGPT
 
 ## Stepwise regression
 
-Para el primer caso se busca obtener un modelo de regresión en el que las variables a utilizar se definan por el proceso automático de Stepwise regression. Para el análisis se quitan del dataset el nombre de la jugadora y el equipo, ya que dichas variables cuentan con una gran cantidad de categorías. En caso de incluirlas, se obtendrían estimaciones muy pobres debido a los escasos grados de libertad, o incluso podría llegar el caso que sea imposible estimar el modelo.
+Para el primer caso se busca obtener un modelo de regresión en el que las variables a utilizar se definan por el proceso automático de Stepwise regression, ya que utilizar la técnica del mejor subconjunto llevaría a un número muy grande de modelos a comprar y se opta por esta técnica que si bien no garantiza encontrar el óptimo, puede darnos una buena primera aproximación. Para el análisis se quitan del dataset el nombre de la jugadora y el equipo, ya que dichas variables cuentan con una gran cantidad de categorías. En caso de incluirlas, se obtendrían estimaciones muy pobres debido a los escasos grados de libertad, o incluso podría llegar el caso que sea imposible estimar el modelo.
 
 ```{r}
 training_filtered <- select(training, -Jugadora, -Equipo)
@@ -365,3 +370,28 @@ kable(modelos[,c(1,3)], caption = "Tabla N°5: Comparación de la capacidad pred
 ```
 
 Sorprendentemente, la Tabla N°5 muestra que el mejor ajuste fue el de mínimos cuadrados ordinarios, el cual presenta un error 60% menor al de los modelos de Ridge y Lasso. Esto nos indica que, a pesar de que no se cumplan los supuestos y hayamos identificado posibles problemas de colinealidad, a la hora de predecir mínimo cuadrados fue más performante que el resto.
+
+# Regresión Logística
+
+## Creación de nueva variable
+
+Se procede a crear una nueva variable bienaria llamada Puntos_200 la cual toma valor 1 si Puntos >= 200, 0 caso contrario.
+
+```{r}
+data <- data %>%
+  mutate(
+    Puntos_200 = ifelse(Puntos>=200, 1, 0)
+    )
+```
+
+Con esta nueva variable, se procede a dividir el dataset nuevamente como en el comienzo de este trabajo. Está claro que el punto anterior podría haberse hecho en los datasets ya separados, pero como lo indicaba la consigna, la variable se creó en el dataset original.
+
+```{r}
+# División en training y testing
+set.seed(45672848)
+index_training <- sample(1:nrow(data), size = 0.7*nrow(data))
+
+training <- data[index_training,]
+testing <- data[-index_training,]
+```
+
