@@ -8,6 +8,7 @@ editor_options:
 execute: 
   echo: false
   warning: false
+  error: true
 ---
 
 # Introducción
@@ -94,7 +95,7 @@ Se puede observar como es similar la distribución de jugadoras por equipo, mien
 skimr::skim(data %>% select(where(is.numeric)))
 ```
 
-Analizando las variables cuantitativas vemos en primer lugar que no hay valores negativos, lo cual es coherente y requerido. Mientras que la mayoría de las distribuciones son asimétricas hacia la derecha, se puede observar como la cantidad de juegos es la única que no respeta este patrón. Resulta apropiado ver cómo el histograma de dobles y triples es muy parecido en la forma de la distribución como así también el resultante natural de los puntos. 
+Analizando las variables cuantitativas vemos en primer lugar que no hay valores negativos, lo cual es coherente y requerido. Mientras que la mayoría de las distribuciones son asimétricas hacia la derecha, se puede observar como la cantidad de juegos es la única que no respeta este patrón. Resulta apropiado ver cómo el histograma de dobles y triples es muy parecido en la forma de la distribución como así también el resultante natural de los puntos.
 
 También es interesante comparar medias de Triples y Dobles con Puntos. Si se realizar rápidamente Triples x 3 + Dobles x 2 (en medias), se obtiene un valor de 186.7, lejano al 226 de los Puntos, por lo que podríamos entender, a priori, que los libres (tiros individuales de 1 punto) tiene peso en el goleo de las jugadoras.
 
@@ -111,10 +112,7 @@ training <- data[index_training,]
 testing <- data[-index_training,]
 ```
 
-Se procede, luego, a obtener tres modelos mediante los siguientes criterios: 
-- Usando stepwise regression 
-- Criterios propios 
-- Preguntando al famoso ChatGPT
+Se procede, luego, a obtener tres modelos mediante los siguientes criterios: - Usando stepwise regression - Criterios propios - Preguntando al famoso ChatGPT
 
 ## Stepwise regression
 
@@ -193,7 +191,7 @@ g1 <- ggplot(mapping = aes(sample = Modelo_final$.resid)) +
   ggtitle("QQ Normal") +
   xlab("Cuantiles teóricos") +
   ylab("Cuantiles muestrales") +
-  geom_text(aes(x = 2, y = -150, fill ="black", label = paste0("p-value \n", round(shapiro.test(Modelo_final$.resid)$p.value, 8)))) +
+  geom_text(aes(x = 2, y = -50, fill ="black", label = paste0("p-value \n", round(shapiro.test(Modelo_final$.resid)$p.value, 8)))) +
   theme_bw() +
   theme(plot.title = element_text(hjust = 0.5),
         legend.position = "none")
@@ -327,13 +325,14 @@ coefficients(m_lasso)
 ```
 
 ```{r}
-modelos <- data.frame(Modelo = c(paste0("Modelo Ridge (lambda = ", round(lambda_ridge, 3), ")"), paste0("Modelo Lasso (lambda = ", round(lambda_lasso, 3), ")"), "Modelo MCO"),
+modelos <- data.frame(Modelo = c("Modelo Ridge", "Modelo Lasso", "Modelo MCO"),
+                      Lambda = c(round(lambda_ridge, 3), round(lambda_lasso, 3), "-"),
                       Ajuste = c("m_ridge", "m_lasso", "m1"))
 
-modelos$Modelo <- factor(modelos$Modelo, levels = c("Modelo Ridge (lambda = 19.131)", "Modelo Lasso (lambda = 0.496)", "Modelo MCO"))
+modelos$Modelo <- factor(modelos$Modelo, levels = c("Modelo Ridge", "Modelo Lasso", "Modelo MCO"))
 
 Comparacion <- modelos %>% 
-  group_by(Modelo) %>% 
+  group_by(Modelo, Lambda) %>% 
   summarise(Intercept = round(coefficients(get(Ajuste))[1], 2),
             Dobles = round(coefficients(get(Ajuste))[2], 2),
             Triples = round(coefficients(get(Ajuste))[3], 2),
@@ -365,7 +364,7 @@ MSE_MCO <- mean((testing$Puntos-pred_MCO)^2)
 
 modelos$MSE = c(MSE_ridge, MSE_lasso, MSE_MCO)
 
-kable(modelos[,c(1,3)], caption = "Tabla N°5: Comparación de la capacidad predictiva de los 3 modelos") %>%
+kable(modelos[,c(1,4)], caption = "Tabla N°5: Comparación de la capacidad predictiva de los 3 modelos") %>%
   kable_styling(bootstrap_options = "striped", full_width = F)
 ```
 
@@ -375,7 +374,7 @@ Sorprendentemente, la Tabla N°5 muestra que el mejor ajuste fue el de mínimos 
 
 ## Creación de nueva variable
 
-Se procede a crear una nueva variable bienaria llamada Puntos_200 la cual toma valor 1 si Puntos >= 200, 0 caso contrario.
+Se procede a crear una nueva variable bienaria llamada Puntos_200 la cual toma valor 1 si Puntos \>= 200, 0 caso contrario.
 
 ```{r}
 data <- data %>%
@@ -394,4 +393,3 @@ index_training <- sample(1:nrow(data), size = 0.7*nrow(data))
 training <- data[index_training,]
 testing <- data[-index_training,]
 ```
-
