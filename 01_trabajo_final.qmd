@@ -13,7 +13,7 @@ execute:
 
 # Introducción
 
-El básquetbol es uno de los deportes más populares en los Estados Unidos. Además de su destacadísima liga masculina NBA, se encuentra su similar femenina, la altamente competitiva, WNBA. El siguiente trabajo busca demostrar conocimientos parendidos en la materia Regresión avanzada a partir de un dataset de esta ultima liga mencionada.
+El básquetbol es uno de los deportes más populares en los Estados Unidos. Además de su destacadísima liga masculina NBA, se encuentra su similar femenina, la altamente competitiva, WNBA. El siguiente trabajo busca demostrar conocimientos aprendidos en la materia Regresión avanzada a partir de un dataset de esta ultima liga mencionada.
 
 # Dataset
 
@@ -28,6 +28,8 @@ library(egg)
 library(ggpubr)
 library(car)
 library(glmnet)
+library(caret)
+library(pROC)
 ```
 
 ## Importación de datos
@@ -211,7 +213,7 @@ g <- ggarrange(g1, g2, ncol = 2)
 annotate_figure(g, top = text_grob("Gráfico N°1: Comprobación de supuestos", face = "bold", size = 14))
 ```
 
-En el gráfico N°1 se observa que la distribución de los mismos presenta colas pesadas y que no se verifica el supuesto de variancia constante. En caso de querer solucionarlo, podría optarse por utilizar una transformación de la variables respuesta como el $log(Y)$ o bien aplicar el método de Box y Cox.
+En el gráfico N°1 se observa que la distribución de los mismos presenta colas pesadas y que no se verifica el supuesto de variancia constante. En caso de querer solucionarlo, podría optarse por utilizar una transformación de la variables respuesta como el $log(Y)$ o bien aplicar el método de Box y Cox. Por otro lado, también se observa a un posible valor atípico.
 
 Luego se procede a analizar colinealidad
 
@@ -292,26 +294,24 @@ Betas = data.frame(Variable = names(coef(m1)),
 
 kable(Betas, caption = "Tabla N°3: Coeficientes estimados del modelo") %>%
   kable_styling(bootstrap_options = c("striped", "hover"), full_width = F)
-
-as.numeric(coef(summary(m2))[, "Pr(>|t|)"])
 ```
 
-A través de la Tabla N°3 se puede interpretar sobre nuestro modelo elegido:
+A través de la Tabla N°3 se puede interpretar nuestro modelo elegido:
 
 -   El valor estimado del intercepto es de 2.68 aproximadamente. Igual así, el pvalue resulta de no poder descartar la hipótesis de que el intercepto es igual a 0. Recordando la interpretación del mismo, se pensaría que es el valor de puntos promedio para 0 dobles, 0 triples, 0 robos y 0 juegos. Lo cual no resulta para nada ilógico pensar que este valor sea 0 en la realidad y que estadísticamente nos de dicho indicio.
 
-Los demás predictores tienen un pvalue <0.01, algunos con ordenes mucho menores, por lo que podemos rechazar la hipotesis de nulidad con bastante confianza. Respecto a sus valores predichos podemos decir que:
+Los demás predictores tienen un pvalue \<0.01, algunos con ordenes mucho menores, por lo que podemos rechazar la hipotesis de nula. Respecto a sus valores predichos podemos decir que:
 
--   Por cada doble convertido, los puntos promedio de cada jugadora aumentan en una suma de 2.40, manteniendose todas las demás variables constantes.
--   Por cada triple convertido, los puntos promedio de cada jugadora aumentan en una suma de 3.46, manteniendose todas las demás variables constantes.
--   Por cada robo conseguido, los puntos promedio de cada jugadora aumentan en una suma de 0.74, manteniendose todas las demás variables constantes.
--   Por cada juego jugado, los puntos promedio de cada jugadora disminuyen en una suma de 0.51, manteniendose todas las demás variables constantes.
+-   Por cada doble convertido, los puntos de una jugadora aumentan en promedio en una suma de 2.40, manteniendose todas las demás variables constantes.
+-   Por cada triple convertido, los puntos de una jugadora aumentan en promedio en una suma de 3.46, manteniendose todas las demás variables constantes.
+-   Por cada robo conseguido, los puntos de una jugadora aumentan en promedio en una suma de 0.74, manteniendose todas las demás variables constantes.
+-   Por cada juego jugado, los puntos de una jugadora disminuyen en promedio en una suma de 0.51, manteniendose todas las demás variables constantes.
 
-Estas interpretaciones nos dejan insights interesantes de analizar. Si bien dobles y triples suman 2 y 3 puntos respectivamente en el juego, que el valor que afectan al promedio sea mayor puede estar indicando que en cierto modo, se absorbe esa probabilidad de libre comentada anteriormente. Lo mismo podemos pensar acerca del robo, ya que cuando se da el mismo, en el desorden del juego, es potable a que quien roba reciba una falta. Por último, el valor al aumentar la cantidad de juegos podría estar dando indicio de desgaste físico de las jugadoras.
+Estas interpretaciones nos dejan insights interesantes de analizar. Si bien dobles y triples suman 2 y 3 puntos respectivamente en el juego, que el valor que afectan al promedio sea mayor puede estar indicando que en cierto modo, estos coeficientes están absorbiendo el efecto de los tiros libres. Lo mismo podemos pensar acerca del robo, ya que cuando se da el mismo, en el desorden del juego, es probable que quien roba reciba una falta. Por último, el valor al aumentar la cantidad de juegos podría estar dando indicio de desgaste físico de las jugadoras, o bien podría ser que, a pesar de haber encontrado que la multicolinealidad no era muy importante, en realidad si nos está afectando a la estimación de este coeficiente, que a priori uno esperaría que fuera positivo.
 
 # Métodos de Regularización
 
-Una vez identificado el mejor modelo de regresión con el ajuste de mínimos cuadrados ordinarios, se optó por evaluar la posibilidad de utilizar métodos de regularización. Esto se hizo con el objetivo de intentar mejorar la capacidad predictiva, basándonos en la idea del *trade-off* entre sesgo y variancia.
+Una vez identificado el mejor modelo de regresión con el ajuste de mínimos cuadrados ordinarios, se optó por evaluar la posibilidad de utilizar métodos de regularización. Esto se hizo con el objetivo de intentar mejorar la capacidad predictiva, basándose en la idea del *trade-off* entre sesgo y variancia.
 
 Para realizar tanto el ajuste mediante la regresión ridge, como por el método de lasso, primero se buscó el mejor valor de $\lambda$ utilizando *5-fold Cross-Validation.*
 
@@ -385,22 +385,104 @@ Sorprendentemente, la Tabla N°5 muestra que el mejor ajuste fue el de mínimos 
 
 ## Creación de nueva variable
 
-Se procede a crear una nueva variable bienaria llamada Puntos_200 la cual toma valor 1 si Puntos \>= 200, 0 caso contrario.
+Se procede a crear una nueva variable binaria llamada Puntos_200 la cual toma valor 1 si Puntos \>= 200, 0 caso contrario.
 
 ```{r}
 data <- data %>%
   mutate(
-    Puntos_200 = ifelse(Puntos>=200, 1, 0)
+    Puntos_200 = factor(ifelse(Puntos>=200, 1, 0))
     )
 ```
 
-Con esta nueva variable, se procede a dividir el dataset nuevamente como en el comienzo de este trabajo. Está claro que el punto anterior podría haberse hecho en los datasets ya separados, pero como lo indicaba la consigna, la variable se creó en el dataset original.
+Con esta nueva variable, se procede a dividir el dataset nuevamente como en el comienzo de este trabajo. Si bien el punto anterior podría haberse hecho en los datasets ya separados, es conveniente hacerlo en el dataset original y generar la partición con la función `createDataPartition` ya que garantiza que la representación de las categorías sea pareja en training y testing.
 
 ```{r}
 # División en training y testing
-set.seed(45672848)
-index_training <- sample(1:nrow(data), size = 0.7*nrow(data))
-
-training <- data[index_training,]
-testing <- data[-index_training,]
+set.seed(4567)
+#index_training <- sample(1:nrow(data), size = 0.7*nrow(data))
+index_training <- createDataPartition(data$Puntos_200, p = 0.7)
+training <- data[index_training$Resample1,]
+testing <- data[-index_training$Resample1,]
 ```
+
+## Modelo de Regresión Logística
+
+Creada la variable binaria y dividido el dataset en training y testing, se ajustó el modelo de regresión logística para predecir la probabilidad de que una jugadora anote más de 200 puntos en base a la cantidad de dobles, la cantidad de triples, la cantidad de robos y los partidos jugados.
+
+```{r}
+m_logistica <- glm(Puntos_200 ~ Dobles + Triples + Robos + Juegos, family = "binomial", data = training)
+
+```
+
+### Interpretación
+
+```{r}
+Betas = data.frame(Variable = names(coef(m_logistica)),
+                   Betas = round(as.numeric(coef(m_logistica)), 2),
+                   RO = round(exp(as.numeric(coef(m_logistica))), 2),
+                   P_value = as.numeric(coef(summary(m_logistica))[, "Pr(>|z|)"]))
+
+kable(Betas, caption = "Tabla N°6: Coeficientes y razones de odds estimados del modelo") %>%
+  kable_styling(bootstrap_options = c("striped", "hover"), full_width = F)
+```
+
+A partir de la Tabla N°6 puede verse que solo resultan significativos los efectos de las variables Dobles y Triples. A continuación se presenta su interpretación:
+
+-   Por cada doble extra que anote una jugadora, sus chances de anotar más de 200 puntos en la temporada aumentan un 52% en promedio.
+
+-   Por cada triple extra que anote una jugadora, sus chances de anotar más de 200 puntos en la temporada aumentan un 75% en promedio.
+
+### Punto de corte óptimo y evaluación del modelo
+
+Definido el modelo, se buscó el punto de corte óptimo y se evaluó su performance en el conjunto de testing.
+
+```{r}
+curvaROC <- roc(
+  response = training$Puntos_200,
+  predictor = fitted.values(m_logistica),
+  quiet = TRUE
+)
+
+plot(curvaROC, print.auc = TRUE)
+
+pdc = pROC::coords(curvaROC, "best", ret = "threshold")
+
+```
+
+```{r}
+testing$Predichos <- factor(ifelse(predict(m_logistica, newdata = testing, type = "response") >= pdc$threshold, 1, 0))
+
+library(janitor)
+
+tabyl(dat = testing, Puntos_200, Predichos) %>% 
+  adorn_totals(where = c("row", "col"))
+
+metricas = confusionMatrix(data = testing$Predichos, reference = testing$Puntos_200, positive = "1", mode = "everything",)
+
+medidas = data.frame(Precisión = round(as.numeric(metricas$overall[1]), 3),
+                     Sensibilidad = round(as.numeric(metricas$byClass[1]), 3),
+                     Especificidad = round(as.numeric(metricas$byClass[2]), 3),
+                     VPP = round(as.numeric(metricas$byClass[3]), 3),
+                     VPN = round(as.numeric(metricas$byClass[4]), 3),
+                     Kappa = round(as.numeric(metricas$overall[2]), 3),
+                     "F1-Score" = round(as.numeric(metricas$byClass[7]), 3))
+
+kable(medidas, caption = paste0("Tabla N°7: Medidas de ajuste del modelo con un punto de corte ", round(pdc$threshold, 3))) %>%
+  kable_styling(bootstrap_options = c("striped", "hover"), full_width = F)
+```
+
+A continuación se interpretan las medidas presentadas en la Tabla N°7:
+
+-   **Precisión:** El modelo predice correctamente al 96,3% de las jugadoras.
+
+-   **Sensibilidad:** El modelo predice correctamente al 95,7% de las jugadoras que anotaron más de 200 puntos en la temporada.
+
+-   **Especificidad:** El modelo predice correctamente al 96,8% de las jugadoras que anotaron menos de 200 puntos en la temporada.
+
+-   **VPP:** El 95,7% de las jugadoras que el modelo predice que anotaron más de 200 puntos efectivamente lo hicieron en la realidad.
+
+-   **VPN:** El 96,8% de las jugadoras que el modelo predice que no anotaron más de 200 puntos efectivamente no lo hicieron en la realidad.
+
+-   **Kappa:** Dado que el coeficiente kappa dio cercano a 1, se puede decir que el ajuste del modelo es muy bueno.
+
+-   **F1-Score:** Dado que la sensibilidad y el VPP nos dieron iguales, el valor de F1 score también coincide. Nuevamente, este valor indica un muy buen ajuste del modelo.
