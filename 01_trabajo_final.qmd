@@ -34,12 +34,12 @@ library(pROC)
 
 ## Importación de datos
 
-```{r}
+```{r, echo=FALSE}
 data <- read.csv("files/WNBA.csv", sep = ";")
 summary(data)
 ```
 
-```{r}
+```{r, echo=FALSE}
 data$Equipo <- as.factor(data$Equipo)
 data$Posicion <- as.factor(data$Posicion)
 summary(data)
@@ -120,7 +120,7 @@ Se procede, luego, a obtener tres modelos mediante los siguientes criterios: - U
 
 Para el primer caso se busca obtener un modelo de regresión en el que las variables a utilizar se definan por el proceso automático de Stepwise regression, ya que utilizar la técnica del mejor subconjunto llevaría a un número muy grande de modelos a comprar y se opta por esta técnica que si bien no garantiza encontrar el óptimo, puede darnos una buena primera aproximación. Para el análisis se quitan del dataset el nombre de la jugadora y el equipo, ya que dichas variables cuentan con una gran cantidad de categorías. En caso de incluirlas, se obtendrían estimaciones muy pobres debido a los escasos grados de libertad, o incluso podría llegar el caso que sea imposible estimar el modelo.
 
-```{r}
+```{r, echo=FALSE}
 training_filtered <- select(training, -Jugadora, -Equipo)
 m1 <- MASS::stepAIC(
   object = lm(Puntos ~ 1, data = training_filtered), #punto de partida
@@ -140,7 +140,7 @@ El resultado devuelve la utilización de Dobles, Triples, Robos y Juegos.
 
 Observando el dataset, se plantea un modelo donde los puntos se basen en dobles y triples, y debido a que debería de haber una diferencia (por los libres), se plantea la posición, la cual determinaría la tendencia de un jugador a recibir faltas de tiro.
 
-```{r}
+```{r, echo=FALSE}
 m2 <- lm(Puntos ~ Dobles + Triples + Posicion, data = training_filtered)
 
 summary(m2)
