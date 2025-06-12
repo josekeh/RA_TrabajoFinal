@@ -1,6 +1,8 @@
 ---
 title: "Trabajo Práctico Final"
-format: pdf
+format:
+  html:
+    embed-resources: true
 lang: es 
 editor: visual
 editor_options: 
@@ -11,15 +13,28 @@ execute:
   error: true
 ---
 
+<style>
+@media print {
+  button {
+    display: none;
+  }
+}
+</style>
+
+<button onclick="window.print()">
+
+📄 Exportar a PDF
+
+</button>
+
 # Introducción
 
 El básquetbol es uno de los deportes más populares en los Estados Unidos. Además de su destacadísima liga masculina NBA, se encuentra su similar femenina, la altamente competitiva, WNBA. El siguiente trabajo busca demostrar conocimientos aprendidos en la materia Regresión avanzada a partir de un dataset de esta ultima liga mencionada.
 
 # Dataset
 
-## Librerías
-
 ```{r}
+# Librerías
 library(tidyverse)
 library(ggplot2)
 library(kableExtra)
@@ -34,6 +49,8 @@ library(pROC)
 
 ## Importación de datos
 
+Se procede a cargar los datos y a mostrar un summary de los mismos:
+
 ```{r}
 data <- read.csv("files/WNBA.csv", sep = ";")
 summary(data)
@@ -47,9 +64,11 @@ summary(data)
 
 ## Breve análisis
 
+Luego de importar los datos, se procede a hacer un breve análisis.
+
 ### Vacíos y duplicados
 
-A través del summary se puede ver que las variables numéricas están correctamente definidas, sin NAs. Los mismo para Equipo y Posición. Se procede a analizar si existen jugadoras campo Jugadora vacío
+A través del summary se puede ver que las variables numéricas están correctamente definidas, sin NAs. Los mismo para Equipo y Posición. Se procede a analizar si existen jugadoras campo Jugadora vacío. El resultado de aplicar los filtros correspondientes es el siguiente:
 
 ```{r}
 paste0("Hay ",count(data %>% filter(Jugadora == "")), " registros vacíos")
@@ -58,10 +77,10 @@ paste0("Hay ",count(data %>% filter(Jugadora == "")), " registros vacíos")
 Una vez checkeado esto, viendo que no hay vacíos, vemos si hay alguna jugadora repetida.
 
 ```{r}
-data[duplicated(data$Jugadora),]
+data[duplicated(data$Jugadora),][,c("Jugadora", "Equipo")]
 ```
 
-Vemos que existen jugadoras que aparecen más de una vez, pero parece ser que se encuentran en equipos diferentes.
+Vemos que existen jugadoras que aparecen más de una vez, pero parece ser que se encuentran en equipos diferentes. Para eso, contamos la cantidad de veces que se encuentra duplicado Jugadora + Equipo, con el resultado que sigue:
 
 ```{r}
 print(count(data[duplicated(data[, c("Jugadora", "Equipo")]), ]))
@@ -152,6 +171,7 @@ Para este tercer modelo, se le ha preguntado (o desafiado) a ChatGPT a recomenda
 
 ```{r}
 m3 <- lm(Puntos ~ Triples + Dobles + Minutos + Asistencias + Rebotes + Posicion, data = training)
+summary(m3)
 ```
 
 ## Comparación de modelos
