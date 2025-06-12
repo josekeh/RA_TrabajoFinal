@@ -13,6 +13,7 @@ execute:
   error: true
 ---
 
+```{=html}
 <style>
 @media print {
   button {
@@ -20,7 +21,7 @@ execute:
   }
 }
 </style>
-
+```
 <button onclick="window.print()">
 
 📄 Exportar a PDF
@@ -448,9 +449,9 @@ kable(Betas, caption = "Tabla N°6: Coeficientes y razones de odds estimados del
 
 A partir de la Tabla N°6 puede verse que solo resultan significativos los efectos de las variables Dobles y Triples. A continuación se presenta su interpretación:
 
--   Por cada doble extra que anote una jugadora, sus chances de anotar más de 200 puntos en la temporada aumentan un 52% en promedio.
+-   Por cada doble extra que anote una jugadora, sus chances de anotar más de 200 puntos en la temporada aumentan un 52%.
 
--   Por cada triple extra que anote una jugadora, sus chances de anotar más de 200 puntos en la temporada aumentan un 75% en promedio.
+-   Por cada triple extra que anote una jugadora, sus chances de anotar más de 200 puntos en la temporada aumentan un 75%.
 
 ### Punto de corte óptimo y evaluación del modelo
 
